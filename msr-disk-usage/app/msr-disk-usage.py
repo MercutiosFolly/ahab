@@ -6,7 +6,7 @@
 #
 # @brief
 #  Tool for calculating the backend storage  space usage of orgs/repos/tags 
-#  for Mirantis Secure Registry
+#  for Mirantis Secure Registry. Size in MB
 #
 # @details
 #   - Tested on MSR 2.9.0 - mileage may vary between versions as API changes
@@ -16,6 +16,9 @@
 #   - Check the format of inputs, not just number
 #   - Collapse url, user, token -> access object
 #   - It should be possible to collapse "get_*_size" into a single recursive
+#   - Make "size" units adjustable
+#   - Finish documentation
+#   - containerize
 #############################################################
 
 import requests
@@ -41,7 +44,7 @@ def get_tag_size( tag, url, user, token, ca ):
     tag_json = req.json()
 
     # Get tag size
-    tag_size_json = { "tag": tag, "size": tag_json[0][ "manifest" ][ "size" ] }
+    tag_size_json = { "tag": tag, "size": tag_json[0][ "manifest" ][ "size"]/1000000 }
     return tag_size_json
 
 #############################################################
@@ -138,8 +141,10 @@ if __name__ == '__main__':
               f"\tWhere,\n"
               f"\t\turl      = url of MSR including port. Example: <ip>:<port>\n"
               f"\t\tusername = username of user to access MSR as. Example: admin\n"
-              f"\t\ttoken    = user access token of MSR user"
-              f"\t\tpassword = password of MSR user") )
+              f"\t\ttoken    = user access token of MSR user\n"
+              f"\t\tpassword = password of MSR user\n"
+              f"\n"
+              f"\t\t**All sizes in MB") )
 
     url   = sys.argv[1]
     user  = sys.argv[2]
