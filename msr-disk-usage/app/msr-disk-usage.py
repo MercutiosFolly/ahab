@@ -12,17 +12,20 @@
 #   - Tested on MSR 2.9.0 - mileage may vary between versions as API changes
 #     can and do occur.
 #   - This program does not account for shared/cross-mounted layers so results
-#     may differ from on-disk size
+#     may differ from actual on-disk size
 #
 #   Rev 1.0 - 07/25/21 - JH - initial release
 #   Rev 1.1 - 08/01/21 - JH - Add input handling, fix json formatting, migrate
 #       to property class, add adjustable size query
+#   Rev 1.2 - 08/02/21 - JH - Generalize to accomodate paging (paging
+#       unavailable - pending feature request
 #
 # @todo
-#   - MAJOR: Handle paging! (temporary workaround is to catch resource count
-#     and set pageSize=count, but this is not robust for extremely large
-#     systems
-#   - It should be possible to collapse "get_*_size" into a single recursive
+#   - Handle paging. Current solution is to catch resource count
+#     and set pageSize=count, but this is not quite as robust for extremely large
+#     systems. Pending feature request to expose the namespaceAccountID or
+#     allow paging off of a different value.
+#   - Collapse "get_*_size" into a single recursive
 #   - Finish documentation
 #############################################################
 
@@ -38,13 +41,14 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 #############################################################
 # @class properties
 class Properties:
-    def __init__(self, url, user, token, units, ca_path, debug):
+    def __init__(self, url, user, token, units, ca_path, debug, api_page_size):
         self.url        = url
         self.user       = user
         self.token      = token
         self.units      = units
         self.ca_path    = ca_path
         self.debug      = debug
+        self.api_page_size = api_page_size
 
 #############################################################
 # @fn get_tag_size
@@ -67,13 +71,13 @@ def get_tag_size( tag, props ):
 
     # Get tag size
     factor = 1
-    if props.units == 'B':
+    if props.units == 'b':
         factor = 1
-    elif props.units == 'KB':
+    elif props.units == 'kb':
         factor = 1000
-    elif props.units == 'MB':
+    elif props.units == 'mb':
         factor = 1000000
-    elif props.units == 'GB':
+    elif props.units == 'gb':
         factor = 1000000000
     else:
         print( f"[Warn] No size units provided, using MB", file=sys.stderr )
@@ -160,9 +164,25 @@ def get_ns_size( ns, props ):
 #   The list that gets passed to this function is the former, while the list
 #   we work with in \ref get_ns_size is the latter. Do not be confused by the
 #   similar "repo_list_json" naming
-def get_size_data( repositories_api_list_json, props ):
+def get_size_data( num_repos, props ):
     size_data_json = {}
     ns_arr = []
+
+    endpoint = "https://" + props.url + "/api/v0/repositories/?pageSize=" + num_repos + "&count=true"
+    endpoint_headers = {'accept': 'application/json', 'content-type': 'application/json'}
+
+    try:
+        req = requests.get( endpoint, auth=(props.user, props.token),
+                headers=endpoint_headers, verify=props.ca_path )
+    except:
+        sys.exit( f"[Fatal] Unable to connect to MSR to retrieve repo data. Is your URL/IP valid?" )
+
+    if req.status_code != 200:
+        sys.exit( f"[Fatal] Failed to reach API endpoint at {endpoint}: Status code {req.status_code}" )
+
+    repo_num  = req.headers["X-Resource-Count"]
+    repositories_api_list_json = req.json()
+
     # For each namespace -> get size data
     ns_size = 0
     ns_size_json_aggregate = []
@@ -182,6 +202,7 @@ def get_size_data( repositories_api_list_json, props ):
 if __name__ == '__main__':
     # Variables
     msr_ca_path = "/tmp/msr_ca.pem"
+    api_page_size = 10 #Tune the number of entries returned in a single API call
 
     # Input Handling
     parser = argparse.ArgumentParser(
@@ -190,21 +211,21 @@ if __name__ == '__main__':
     parser.add_argument(
         'url',
         metavar='url',
-        help='url of MSR including port. Example: 123.123.123.123:444' )
+        help='Url of MSR including port. Example: 123.123.123.123:444' )
     parser.add_argument(
         'username',
         metavar='username',
-        help='username to use when accessing MSR. Example: admin' )
+        help='Username to use when accessing MSR. Example: admin' )
     parser.add_argument(
         'token',
         metavar='token',
-        help='user access token (or password) of MSR user' )
+        help='User access token (or password) of MSR user' )
     parser.add_argument(
         '-u',
         '--units',
-        choices = ['B', 'KB', 'MB', 'GB'],
-        default = 'MB',
-        help='Units to represent size: B, MB, GB' )
+        choices = ['b', 'kb', 'mb', 'gb'],
+        default = 'mb',
+        help='Units to represent size: b = bytes, kb = kilobytes, mb = megabytes (default), gb = bigabytes' )
     parser.add_argument(
         '-d',
         '--debug',
@@ -216,7 +237,7 @@ if __name__ == '__main__':
 
     # Configure program properties
     props = Properties( args.url, args.username, args.token, args.units,
-            msr_ca_path, args.debug )
+            msr_ca_path, args.debug, api_page_size )
 
     # Get MSR CA
     endpoint_ca = "https://" + props.url + "/ca"
@@ -232,8 +253,8 @@ if __name__ == '__main__':
     with open( props.ca_path, "w" ) as f:
         f.write( msr_ca )
 
-    # Obtain repo list
-    endpoint_repos = "https://" + props.url + "/api/v0/repositories?count=true"
+    # Obtain repo count
+    endpoint_repos = "https://" + props.url + "/api/v0/repositories?pageSize=1&count=true"
     endpoint_repos_headers = {'accept': 'application/json', 'content-type': 'application/json'}
 
     try:
@@ -245,14 +266,12 @@ if __name__ == '__main__':
     if req.status_code != 200:
         sys.exit( f"[Fatal] Failed to reach API endpoint at {endpoint_repos}: Status code {req.status_code}" )
 
-    repo_num  = req.headers["X-Resource-Count"]
+    num_repos  = req.headers["X-Resource-Count"]
     if props.debug == True:
-        print( f"total Repo Count:\t {repo_num}", file=sys.stderr )
-
-    repositories_api_list_json = req.json()
+        print( f"total Repo Count:\t {num_repos}", file=sys.stderr )
 
     # Extract data 
-    size_data_json = get_size_data( repositories_api_list_json, props )
+    size_data_json = get_size_data( num_repos, props )
 
     # Return data
     print( json.dumps( size_data_json ) )
