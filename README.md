@@ -57,3 +57,60 @@ As for the name. I'm hunting whales.
   # Edit REPO to appropriate value: myorg/repo
   cat data.json | jq '[ .members[] | select( .id == "NAMESPACE") | .members[] | select( .id == "REPO" ) | .members[] | { "repo": .id, "size": .size} ] | sort_by(.size) | reverse'
   ```
+
+#### Sample Output
+
+```bash
+$> docker run -it --rm jhind/msr-disk-usage:1.2 18.221.171.117:444 admin dockeradmin | jq
+{
+  "id": "total",
+  "type": "aggregate",
+  "size": 1302.261948,
+  "members": [
+    {
+      "id": "whale9",
+      "type": "namespace",
+      "size": 108.521829,
+      "members": [
+        {
+          "id": "whale9/repo1",
+          "type": "repo",
+          "size": 57.325534000000005,
+          "members": [
+            {
+              "id": "whale9/repo1/tags/c",
+              "type": "tag",
+              "size": 0.766607
+            },
+            {
+              "id": "whale9/repo1/tags/b",
+              "type": "tag",
+              "size": 2.813006
+            },
+            {
+              "id": "whale9/repo1/tags/a",
+              "type": "tag",
+              "size": 53.745921
+            }
+          ]
+        },
+        {
+          "id": "whale9/repo2",
+          "type": "repo",
+          "size": 51.196295,
+          "members": [
+            {
+              "id": "whale9/repo2/tags/2.0",
+              "type": "tag",
+              "size": 31.53133
+            },
+            {
+              "id": "whale9/repo2/tags/1.0",
+              "type": "tag",
+              "size": 19.664965
+            }
+          ]
+        }
+      ]
+    },
+```
