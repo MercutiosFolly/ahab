@@ -19,10 +19,9 @@
 #       to property class, add adjustable size query
 #   Rev 1.2 - 08/02/21 - JH - Generalize to accomodate paging (paging
 #       unavailable - pending feature request
-#   Rev 1.3 - 10/20/21 - JH - implement v2 paging (where applicable)
+#   Rev 1.3 - 10/20/21 - JH - implement paging
 #
 # @todo
-#   - Paging implemented in v2 but I found a solution using v0 - retrieve from
 #   header
 #   - Collapse "get_*_size" into a single recursive
 #   - Finish documentation
@@ -41,14 +40,13 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 #############################################################
 # @class properties
 class Properties:
-    def __init__(self, url, user, token, units, ca_path, debug, legacy, api_page_size):
+    def __init__(self, url, user, token, units, ca_path, debug, api_page_size):
         self.url        = url
         self.user       = user
         self.token      = token
         self.units      = units
         self.ca_path    = ca_path
         self.debug      = debug
-        self.legacy     = legacy            # Used to enable pagination by using /v2/catalog/ on newer versions
         self.api_page_size = api_page_size  # Not implemented
 
 #############################################################
@@ -141,32 +139,46 @@ def get_repo_size( repo, props ):
 #   See notes for \ref get_size_data()
 def get_ns_size( ns, props ):
     ns_size_json = {}
-    # Get repos in namespace (API)
-    endpoint = "https://" + props.url + "/api/v0/repositories/" + ns + "?count=true"
-    endpoint_headers = {'accept': 'application/json', 'content-type': 'application/json'}
-
-    try:
-        req = requests.get( endpoint, auth=(props.user, props.token),
-                headers=endpoint_headers, verify=props.ca_path )
-    except:
-        sys.exit( f"[Fatal] Unable to connect to MSR to retrieve namespace data. Is your URL/IP valid?" )
-
-    if req.status_code != 200:
-        sys.exit( f"[Fatal] Failed to reach API endpoint at {endpoint}: Status code {req.status_code}" )
-
-    repo_num  = req.headers["X-Resource-Count"]
-    if props.debug == True:
-        print( f"{ns} Repo Count:\t {repo_num}", file=sys.stderr )
-    repo_list_json = req.json()
-
-    # For each repo -> get size data
     ns_size = 0
     repo_size_json_aggregate = []
-    for repo in repo_list_json[ "repositories" ]:
-        repo_name = repo[ "namespace" ] + "/" + repo[ "name" ]
-        repo_size_json = get_repo_size( repo_name, props )
-        ns_size += repo_size_json[ "size" ]
-        repo_size_json_aggregate.append( repo_size_json )
+    endpoint_link = "&pageSize=" + str(props.api_page_size) +"&pageStart="
+    num_repos_processed = 0
+
+    flag_all_repos_processed = False
+    while not flag_all_repos_processed:
+        # Get repos in namespace (API)
+        endpoint = "https://" + props.url + "/api/v0/repositories/" + ns + "?count=true" + endpoint_link
+        endpoint_headers = {'accept': 'application/json', 'content-type': 'application/json'}
+
+        try:
+            req = requests.get( endpoint, auth=(props.user, props.token),
+                    headers=endpoint_headers, verify=props.ca_path )
+        except:
+            sys.exit( f"[Fatal] Unable to connect to MSR to retrieve namespace data. Is your URL/IP valid?" )
+
+        if req.status_code != 200:
+            sys.exit( f"[Fatal] Failed to reach API endpoint at {endpoint}: Status code {req.status_code}" )
+
+        num_repos  = req.headers["X-Resource-Count"]
+        if props.debug == True:
+            print( f"{ns} Repo Count:\t {num_repos}", file=sys.stderr )
+        repo_list_json = req.json()
+
+        # For each repo -> get size data
+        for repo in repo_list_json[ "repositories" ]:
+            repo_name = repo[ "namespace" ] + "/" + repo[ "name" ]
+            repo_size_json = get_repo_size( repo_name, props )
+            ns_size += repo_size_json[ "size" ]
+            repo_size_json_aggregate.append( repo_size_json )
+            num_repos_processed += 1
+
+        # Follow link for paging
+        if "x-next-page-start" in req.headers:
+            endpoint_link = "&pageSize=" + str(props.api_page_size) +"&pageStart=" + req.headers["X-Next-Page-Start"]
+        else:
+            if num_repos_processed < int( num_repos ):
+                print( f"[Warn] Potential discrepency in number of processed repos for {ns}. It may be advantageous to rerun the program to verify results.", file=sys.stderr )
+            flag_all_repos_processed = True
 
     ns_size_json = { "id": ns, "type": "namespace", "size": ns_size, "members": repo_size_json_aggregate }
     return ns_size_json
@@ -179,15 +191,18 @@ def get_ns_size( ns, props ):
 #   The list that gets passed to this function is the former, while the list
 #   we work with in \ref get_ns_size is the latter. Do not be confused by the
 #   similar "repo_list_json" naming
-def get_size_data( num_repos, props ):
+def get_size_data( props ):
 
     size_data_json = {}
-    ns_arr = []
     ns_size = 0
     ns_size_json_aggregate = []
+    ns_arr = []
+    endpoint_link = "&pageSize=" + str(props.api_page_size) +"&pageStart="
 
-    if props.legacy == True: # Use api/v0 - forego paging
-        endpoint = "https://" + props.url + "/api/v0/repositories/?pageSize=" + num_repos + "&count=true"
+    flag_all_repos_processed = False
+    while not flag_all_repos_processed:
+        # Get batch of repos
+        endpoint = "https://" + props.url + "/api/v0/repositories/?count=true" + endpoint_link
         endpoint_headers = {'accept': 'application/json', 'content-type': 'application/json'}
 
         try:
@@ -199,7 +214,6 @@ def get_size_data( num_repos, props ):
         if req.status_code != 200:
             sys.exit( f"[Fatal] Failed to reach API endpoint at {endpoint}: Status code {req.status_code}" )
 
-        repo_num  = req.headers["X-Resource-Count"]
         repositories_api_list_json = req.json()
 
         # For each namespace -> get size data
@@ -211,56 +225,11 @@ def get_size_data( num_repos, props ):
                 ns_size += ns_size_json[ "size" ]
                 ns_size_json_aggregate.append( ns_size_json )
 
-    else: # Use api/v2
-        num_repos_processed = 0
-        endpoint_link = "/v2/_catalog?n=" + str( props.api_page_size )
-        while num_repos_processed < int( num_repos ):
-            # Get/refresh v2 token
-            # @TODO: implement refresh tokens
-            endpoint = "https://" + props.url + "/auth/token?client_id=msr-disk-usage&grant_type=password&username=" + props.user + "&password=" + props.token + "&scope=registry:catalog:*"
-            endpoint_headers = {'accept': 'application/json', 'content-type': 'application/json'}
-
-            try:
-                req = requests.post( endpoint, headers=endpoint_headers, verify=props.ca_path )
-            except:
-                sys.exit( f"[Fatal] Unable to connect to MSR to retrieve token (v2). Is your URL/IP valid?" )
-
-            if req.status_code != 200:
-                sys.exit( f"[Fatal] Failed to reach API endpoint at /auth/token: Status code {req.status_code}" )
-
-            auth_payload = req.json()
-            token_v2 = auth_payload["access_token"]
-
-            # Request batch of repos
-            endpoint = "https://" + props.url + endpoint_link
-            endpoint_headers = {'Authorization': f'Bearer {token_v2}', 'accept': 'application/json', 'content-type': 'application/json'}
-
-            try:
-                req = requests.get( endpoint, headers=endpoint_headers, verify=props.ca_path )
-            except:
-                sys.exit( f"[Fatal] Unable to connect to MSR to retrieve repo data (v2). Is your URL/IP valid?" )
-
-            if req.status_code != 200:
-                sys.exit( f"[Fatal] Failed to reach API endpoint at {endpoint}: Status code {req.status_code}" )
-
-            ns_api_list_json = []
-            for x in req.json()[ "repositories" ]:
-                ns_api_list_json.append( x.split("/")[0] )
-                num_repos_processed += 1
-
-            # Follow link for paging: https://docs.docker.com/registry/spec/api/#listing-repositories
-            if req.links.get('next'):
-                endpoint_link = req.links['next']['url']
-            elif num_repos_processed < int( num_repos ):
-                print( f"[Warn] Potential discrepency in number of processed repos. It may be advantageous to rerun the program to verify results.", file=sys.stderr )
-
-            # For each namespace -> get size data
-            for ns in ns_api_list_json:
-                if ns not in ns_arr:
-                    ns_arr.append( ns ) # track ns we already found
-                    ns_size_json = get_ns_size( ns, props )
-                    ns_size += ns_size_json[ "size" ]
-                    ns_size_json_aggregate.append( ns_size_json )
+        # Follow link for paging
+        if "x-next-page-start" in req.headers:
+            endpoint_link = "&pageSize=" + str(props.api_page_size) +"&pageStart=" + req.headers["X-Next-Page-Start"]
+        else:
+            flag_all_repos_processed = True
 
     size_data_json = { "id": "total", "type": "aggregate", "size": ns_size, "members": ns_size_json_aggregate }
     return size_data_json
@@ -311,18 +280,12 @@ if __name__ == '__main__':
         action='store_true',
         default=False,
         help=argparse.SUPPRESS )
-    parser.add_argument(
-        '-l',
-        '--legacy',
-        action='store_true',
-        default=False,
-        help='Use legacy mode for compatiblity. Forces use of v0 API calls only. Will likely adversely affect performance if MSR installation is very large.' )
 
     args = parser.parse_args()
 
     # Configure program properties
     props = Properties( args.url, args.username, args.token, args.units,
-            msr_ca_path, args.debug, args.legacy, args.page_size )
+            msr_ca_path, args.debug, args.page_size )
 
     # Get MSR CA
     endpoint_ca = "https://" + props.url + "/ca"
@@ -353,10 +316,10 @@ if __name__ == '__main__':
 
     num_repos  = req.headers["X-Resource-Count"]
     if props.debug == True:
-        print( f"total Repo Count:\t {num_repos}", file=sys.stderr )
+        print( f"Total Repo Count:\t {num_repos}", file=sys.stderr )
 
     # Extract data 
-    size_data_json = get_size_data( num_repos, props )
+    size_data_json = get_size_data( props )
 
     # Return data
     print( json.dumps( size_data_json ) )
