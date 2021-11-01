@@ -9,7 +9,7 @@
 #  for Mirantis Secure Registry. Size in MB
 #
 # @details
-#   - Tested on MSR 2.9.0 - mileage may vary between versions as API changes
+#   - Tested on MSR 2.9/2.8 - mileage may vary between versions as API changes
 #     can and do occur.
 #   - This program does not account for shared/cross-mounted layers so results
 #     may differ from actual on-disk size
@@ -17,15 +17,18 @@
 #   Rev 1.0 - 07/25/21 - JH - initial release
 #   Rev 1.1 - 08/01/21 - JH - Add input handling, fix json formatting, migrate
 #       to property class, add adjustable size query
-#   Rev 1.2 - 08/02/21 - JH - Generalize to accomodate paging (paging
-#       unavailable - pending feature request
+#   Rev 1.2 - 08/02/21 - JH - Generalize to accomodate paging
 #   Rev 1.3 - 10/20/21 - JH - implement paging
 #
 # @todo
 #   header
 #   - Collapse "get_*_size" into a single recursive
-#   - Finish documentation
-#   - Optimize functions. iteration takes a while
+#   - Polish documentation
+#   - Optimize functions - iterative json construction has room
+#     for improvement.
+#   - Provide options for v2 API to generalize for all registries
+#     (Implemented elsewhere - no namespace level calls means
+#     extra plumbing required)
 #############################################################
 
 import requests
@@ -47,7 +50,7 @@ class Properties:
         self.units      = units
         self.ca_path    = ca_path
         self.debug      = debug
-        self.api_page_size = api_page_size  # Not implemented
+        self.api_page_size = api_page_size
 
 #############################################################
 # @fn get_tag_size
