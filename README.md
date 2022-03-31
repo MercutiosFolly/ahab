@@ -114,3 +114,13 @@ $> docker run -it --rm jhind/msr-disk-usage:1.2 18.221.171.117:444 admin dockera
       ]
     },
 ```
+
+### msr-unknown-blob
+
+### mke-config
+#### Overview
+
+This tool provides a wrapper for adjusting various configuration settings in MKE (via the API). Note that the config options
+it supports will exapand as needed so functionality may be limited initially.
+
+
