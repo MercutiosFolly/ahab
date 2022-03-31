@@ -29,6 +29,8 @@
 #   - Provide options for v2 API to generalize for all registries
 #     (Implemented elsewhere - no namespace level calls means
 #     extra plumbing required)
+#   - Strip `https://` or `http://` from beginning of FQDN.
+#   - Consider providing a `-k` option akin to curl's
 #############################################################
 
 import requests
@@ -64,7 +66,7 @@ def get_tag_size( tag, props ):
         req = requests.get( endpoint, auth=(props.user, props.token),
                 headers=endpoint_headers, verify=props.ca_path )
     except Exception as e:
-        if props.debug == true:
+        if props.debug == True:
             print( f"[Debug] Request failed with: {e}", file=sys.stderr )
         sys.exit( f"[Fatal] Unable to connect to MSR to retrieve tag data. Is your URL/IP valid?" )
 
@@ -109,7 +111,7 @@ def get_repo_size( repo, props ):
             req = requests.get( endpoint, auth=(props.user, props.token),
                     headers=endpoint_headers, verify=props.ca_path )
         except Exception as e:
-            if props.debug == true:
+            if props.debug == True:
                 print( f"[Debug] Request failed with: {e}", file=sys.stderr )
             sys.exit( f"[Fatal] Unable to connect to MSR to retrieve repo data. Is your URL/IP valid?" )
 
@@ -118,7 +120,7 @@ def get_repo_size( repo, props ):
 
         num_tags  = req.headers["X-Resource-Count"]
         if props.debug == True:
-            print( f"{repo} Tag Count:\t {num_tags}", file=sys.stderr )
+            print( f"[Debug] {repo} Tag Count:\t {num_tags}", file=sys.stderr )
         tag_list_json = req.json()
 
         # For each tag -> get size data
@@ -161,7 +163,7 @@ def get_ns_size( ns, props ):
             req = requests.get( endpoint, auth=(props.user, props.token),
                     headers=endpoint_headers, verify=props.ca_path )
         except Exception as e:
-            if props.debug == true:
+            if props.debug == True:
                 print( f"[Debug] Request failed with: {e}", file=sys.stderr )
             sys.exit( f"[Fatal] Unable to connect to MSR to retrieve namespace data. Is your URL/IP valid?" )
 
@@ -170,7 +172,7 @@ def get_ns_size( ns, props ):
 
         num_repos  = req.headers["X-Resource-Count"]
         if props.debug == True:
-            print( f"{ns} Repo Count:\t {num_repos}", file=sys.stderr )
+            print( f"[Debug] {ns} Repo Count:\t {num_repos}", file=sys.stderr )
         repo_list_json = req.json()
 
         # For each repo -> get size data
@@ -218,7 +220,7 @@ def get_size_data( props ):
             req = requests.get( endpoint, auth=(props.user, props.token),
                     headers=endpoint_headers, verify=props.ca_path )
         except Exception as e:
-            if props.debug == true:
+            if props.debug == True:
                 print( f"[Debug] Request failed with: {e}", file=sys.stderr )
             sys.exit( f"[Fatal] Unable to connect to MSR to retrieve repo data. Is your URL/IP valid?" )
 
@@ -303,7 +305,7 @@ if __name__ == '__main__':
     try:
         req = requests.get( endpoint_ca, verify=False )
     except Exception as e:
-        if props.debug == true:
+        if props.debug == True:
             print( f"[Debug] Request failed with: {e}", file=sys.stderr )
         sys.exit( f"[Fatal] Unable to connect to MSR to retrieve CA. Is your URL/IP valid?" )
 
@@ -322,7 +324,7 @@ if __name__ == '__main__':
         req = requests.get( endpoint_repos, auth=(props.user, props.token),
                 headers=endpoint_repos_headers, verify=props.ca_path )
     except Exception as e:
-        if props.debug == true:
+        if props.debug == True:
             print( f"[Debug] Request failed with: {e}", file=sys.stderr )
         sys.exit( f"[Fatal] Unable to connect to MSR to retrieve count. Is your URL/IP valid?" )
 
