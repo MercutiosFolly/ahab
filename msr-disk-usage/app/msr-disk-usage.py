@@ -2,7 +2,7 @@
 # @file     msr-disk-usage.py
 # @author   James Hind
 # @date     07/25/21
-# @ver      1.4
+# @ver      1.5
 #
 # @brief
 #  Tool for calculating the backend storage  space usage of orgs/repos/tags 
@@ -19,7 +19,9 @@
 #       to property class, add adjustable size query
 #   Rev 1.2 - 08/02/21 - JH - Generalize to accomodate paging
 #   Rev 1.3 - 10/20/21 - JH - implement paging
-#   Rev 1.4 - 03/31/22 - JH - More verbose debug
+#   Rev 1.4 - 04/01/
+#   Rev 1.4 - 04/08/21 - JH - Add ignore tls option
+#   Rev 1.5 - 04/12/21 - JH - Show "last updated" timstamp for each tag
 #
 # @todo
 #   - Collapse "get_*_size" into a single recursive
@@ -29,8 +31,6 @@
 #   - Provide options for v2 API to generalize for all registries
 #     (Implemented elsewhere - no namespace level calls means
 #     extra plumbing required)
-#   - Strip `https://` or `http://` from beginning of FQDN.
-#   - Consider providing a `-k` option akin to curl's
 #############################################################
 
 import requests
@@ -45,7 +45,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 #############################################################
 # @class properties
 class Properties:
-    def __init__(self, url, user, token, units, ca_path, debug, api_page_size):
+    def __init__(self, url, user, token, units, ca_path, debug, api_page_size, ignore_tls):
         self.url        = url
         self.user       = user
         self.token      = token
@@ -53,6 +53,7 @@ class Properties:
         self.ca_path    = ca_path
         self.debug      = debug
         self.api_page_size = api_page_size
+        self.ignore_tls = ignore_tls
 
 #############################################################
 # @fn get_tag_size
@@ -89,7 +90,7 @@ def get_tag_size( tag, props ):
         print( f"[Warn] No size units provided, using MB", file=sys.stderr )
         factor = 1000000
 
-    tag_size_json = { "id": tag, "type": "tag", "size": tag_json[0]["manifest"]["size"]/factor }
+    tag_size_json = { "id": tag, "type": "tag", "size": tag_json[0]["manifest"]["size"]/factor, "updatedAt": tag_json[0]["updatedAt"] }
     return tag_size_json
 
 #############################################################
@@ -288,6 +289,12 @@ if __name__ == '__main__':
         default = 10,
         help='Maximum page size for API requests.' )
     parser.add_argument(
+        '-k',
+        '--ignore-tls',
+        action='store_true',
+        default=False,
+        help='Ignore TLS authentication. By deault msr-disk-usage obtains the CA from the MSR /ca endpoint and uses it for all further communication' )
+    parser.add_argument(
         '-d',
         '--debug',
         action='store_true',
@@ -297,24 +304,28 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Configure program properties
+    if args.ignore_tls == True:
+        msr_ca_path = False
+
     props = Properties( args.url, args.username, args.token, args.units,
-            msr_ca_path, args.debug, args.page_size )
+            msr_ca_path, args.debug, args.page_size, args.ignore_tls )
 
-    # Get MSR CA
-    endpoint_ca = "https://" + props.url + "/ca"
-    try:
-        req = requests.get( endpoint_ca, verify=False )
-    except Exception as e:
-        if props.debug == True:
-            print( f"[Debug] Request failed with: {e}", file=sys.stderr )
-        sys.exit( f"[Fatal] Unable to connect to MSR to retrieve CA. Is your URL/IP valid?" )
+    if not args.ignore_tls:
+        # Get MSR CA
+        endpoint_ca = "https://" + props.url + "/ca"
+        try:
+            req = requests.get( endpoint_ca, verify=False )
+        except Exception as e:
+            if props.debug == True:
+                print( f"[Debug] Request failed with: {e}", file=sys.stderr )
+            sys.exit( f"[Fatal] Unable to connect to MSR to retrieve CA. Is your URL/IP valid?" )
 
-    if req.status_code != 200:
-        sys.exit( f"[Fatal] Failed to reach API endpoint at {endpoint_ca}: Status code {req.status_code}" )
+        if req.status_code != 200:
+            sys.exit( f"[Fatal] Failed to reach API endpoint at {endpoint_ca}: Status code {req.status_code}" )
 
-    msr_ca = req.text
-    with open( props.ca_path, "w" ) as f:
-        f.write( msr_ca )
+        msr_ca = req.text
+        with open( props.ca_path, "w" ) as f:
+            f.write( msr_ca )
 
     # Obtain repo count
     endpoint_repos = "https://" + props.url + "/api/v0/repositories?pageSize=1&count=true"
