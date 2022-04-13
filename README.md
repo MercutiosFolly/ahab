@@ -65,54 +65,61 @@ $> docker run -it --rm jhind/msr-disk-usage:1.2 18.221.171.117:444 admin dockera
 {
   "id": "total",
   "type": "aggregate",
-  "size": 1302.261948,
+  "size": 1338.2137559999994,
   "members": [
     {
-      "id": "whale9",
+      "id": "whale10",
       "type": "namespace",
-      "size": 108.521829,
+      "size": 111.51781299999999,
       "members": [
         {
-          "id": "whale9/repo1",
+          "id": "whale10/repo1",
           "type": "repo",
-          "size": 57.325534000000005,
+          "size": 60.321518,
           "members": [
             {
-              "id": "whale9/repo1/tags/c",
+              "id": "whale10/repo1/tags/c",
               "type": "tag",
-              "size": 0.766607
+              "size": 0.772806,
+              "updatedAt": "2022-04-13T22:59:12.613Z"
             },
             {
-              "id": "whale9/repo1/tags/b",
+              "id": "whale10/repo1/tags/b",
               "type": "tag",
-              "size": 2.813006
+              "size": 2.814559,
+              "updatedAt": "2022-04-13T22:59:09.815Z"
             },
             {
-              "id": "whale9/repo1/tags/a",
+              "id": "whale10/repo1/tags/a",
               "type": "tag",
-              "size": 53.745921
+              "size": 56.734153,
+              "updatedAt": "2022-04-13T22:59:06.908Z"
             }
           ]
         },
         {
-          "id": "whale9/repo2",
+          "id": "whale11/repo2",
           "type": "repo",
           "size": 51.196295,
           "members": [
             {
-              "id": "whale9/repo2/tags/2.0",
+              "id": "whale11/repo2/tags/2.0",
               "type": "tag",
-              "size": 31.53133
+              "size": 31.53133,
+              "updatedAt": "2022-04-13T22:59:39.431Z"
             },
             {
-              "id": "whale9/repo2/tags/1.0",
+              "id": "whale11/repo2/tags/1.0",
               "type": "tag",
-              "size": 19.664965
+              "size": 19.664965,
+              "updatedAt": "2022-04-13T22:59:35.399Z"
             }
           ]
         }
       ]
-    },
+    }
+  ]
+}
 ```
 
 ### msr-unknown-blob

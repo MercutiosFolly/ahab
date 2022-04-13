@@ -2,7 +2,7 @@
 # @file     msr-disk-usage.py
 # @author   James Hind
 # @date     07/25/21
-# @ver      1.3
+# @ver      1.5
 #
 # @brief
 #  Tool for calculating the backend storage  space usage of orgs/repos/tags 
@@ -19,6 +19,8 @@
 #       to property class, add adjustable size query
 #   Rev 1.2 - 08/02/21 - JH - Generalize to accomodate paging
 #   Rev 1.3 - 10/20/21 - JH - implement paging
+#   Rev 1.4 - 04/08/21 - JH - Add ignore tls option
+#   Rev 1.5 - 04/12/21 - JH - Show "last updated" timstamp for each tag
 #
 # @todo
 #   - Collapse "get_*_size" into a single recursive
@@ -87,7 +89,7 @@ def get_tag_size( tag, props ):
         print( f"[Warn] No size units provided, using MB", file=sys.stderr )
         factor = 1000000
 
-    tag_size_json = { "id": tag, "type": "tag", "size": tag_json[0]["manifest"]["size"]/factor }
+    tag_size_json = { "id": tag, "type": "tag", "size": tag_json[0]["manifest"]["size"]/factor, "updatedAt": tag_json[0]["updatedAt"] }
     return tag_size_json
 
 #############################################################
