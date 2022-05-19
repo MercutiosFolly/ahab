@@ -125,6 +125,17 @@ $> docker run -it --rm jhind/msr-disk-usage:1.2 18.221.171.117:444 admin dockera
 ### msr-unknown-blob
 
 ### mke-config
+
+A tool which provides a general interface for updating various MKE configuration. Going to be on a case-by-case basis as most configurations are straightforward to configure out of the box.
+
+### msr-scan-all-tags
+
+A customer may need to trigger new scanning process (for example, if we drop the scanned_images/scanned_layers) for all tags. By default
+the API endpoint which does this only does it for repos where scanning has already been run/configured. For large installations it is impractical
+to set this up by hand. Only other ways to launch a scan are to click the UI button or repush all images (if scan on push is enabled).
+
+
+
 #### Overview
 
 This tool provides a wrapper for adjusting various configuration settings in MKE (via the API). Note that the config options
