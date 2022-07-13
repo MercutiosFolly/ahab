@@ -2,7 +2,7 @@
 # @file     msr-disk-usage.py
 # @author   James Hind
 # @date     07/25/21
-# @ver      1.5
+# @ver      1.6
 #
 # @brief
 #  Tool for calculating the backend storage  space usage of orgs/repos/tags 
@@ -19,9 +19,9 @@
 #       to property class, add adjustable size query
 #   Rev 1.2 - 08/02/21 - JH - Generalize to accomodate paging
 #   Rev 1.3 - 10/20/21 - JH - implement paging
-#   Rev 1.4 - 04/01/
-#   Rev 1.4 - 04/08/21 - JH - Add ignore tls option
-#   Rev 1.5 - 04/12/21 - JH - Show "last updated" timstamp for each tag
+#   Rev 1.4 - 04/01/22 - JH - Add more debug output
+#   Rev 1.5 - 04/08/22 - JH - Add ignore tls option
+#   Rev 1.6 - 04/12/22 - JH - Show "last updated" timstamp for each tag
 #
 # @todo
 #   - Collapse "get_*_size" into a single recursive
