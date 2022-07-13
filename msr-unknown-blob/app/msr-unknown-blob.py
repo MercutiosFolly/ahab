@@ -74,7 +74,7 @@ class BlobAnalyzer:
     def get_missing_blobs( self ):
         connection = ""
         try:
-            connection = r.connect( host = self.url, port = self.port, ssl = { 'ca': self.ca, 'key': self.key, 'cert': self.cert } )
+            connection = r.connect( host = self.url, port = self.port, ssl = { 'ca_certs': self.ca, 'key': self.key, 'cert': self.cert } )
         except:
             print( "[ERROR] Unable to connect to DB" )
 
