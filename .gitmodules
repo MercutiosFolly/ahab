@@ -1,0 +1,3 @@
+[submodule "msr-unknown-blob/app/third_party/rethinkdb-python"]
+	path = msr-unknown-blob/app/third_party/rethinkdb_python
+	url = https://github.com/rethinkdb/rethinkdb-python

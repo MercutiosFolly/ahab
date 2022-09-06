@@ -1,1 +1,6 @@
 ./msr-disk-usage/test
+test_data/
+*_env/
+doc/
+build/
+
